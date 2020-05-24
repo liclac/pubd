@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"path/filepath"
 
@@ -24,7 +23,12 @@ func Main() error {
 		fmt.Fprintln(os.Stderr, "usage:", filepath.Base(os.Args[0]), "[path]")
 		pflag.PrintDefaults()
 	}
+	fsCfg := pubd.FileSystemFlags(pflag.CommandLine)
 	pflag.Parse()
+	fs, err := fsCfg.Build(pflag.Arg(0))
+	if err != nil {
+		return err
+	}
 	l, err := pubd.Listen(*fAddr)
 	if err != nil {
 		return err
@@ -33,7 +37,7 @@ func Main() error {
 		log.Printf("Listening on: %s", l.Addr())
 	}
 	return httppub.Server{
-		Root: http.Dir(pflag.Arg(0)),
+		Root: fs,
 	}.Serve(pubd.WithSignalHandler(context.Background()), l)
 }
 
