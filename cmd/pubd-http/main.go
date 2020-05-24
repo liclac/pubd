@@ -14,8 +14,9 @@ import (
 )
 
 var (
-	fQuiet = pflag.BoolP("quiet", "q", false, "disable info logging")
-	fAddr  = pflag.StringP("addr", "a", "127.0.0.1:8000", "listen address")
+	fQuiet  = pflag.BoolP("quiet", "q", false, "don't print URL on startup")
+	fAddr   = pflag.StringP("addr", "a", "127.0.0.1:8000", "listen address")
+	fPrefix = pflag.StringP("prefix", "P", "", "serve from a subdirectory")
 )
 
 func Main() error {
@@ -25,20 +26,21 @@ func Main() error {
 	}
 	fsCfg := pubd.FileSystemFlags(pflag.CommandLine)
 	pflag.Parse()
+
 	fs, err := fsCfg.Build(pflag.Arg(0))
 	if err != nil {
 		return err
 	}
+
 	l, err := pubd.Listen(*fAddr)
 	if err != nil {
 		return err
 	}
 	if !*fQuiet {
-		log.Printf("Listening on: %s", l.Addr())
+		log.Printf("http://%s%s/", l.Addr(), httppub.CleanPrefix(*fPrefix))
 	}
-	return httppub.Server{
-		Root: fs,
-	}.Serve(pubd.WithSignalHandler(context.Background()), l)
+	return httppub.Serve(pubd.WithSignalHandler(context.Background()), l,
+		httppub.WithPrefix(*fPrefix, httppub.Handler(fs)))
 }
 
 func main() {
