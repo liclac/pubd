@@ -14,7 +14,7 @@ import (
 
 var (
 	fQuiet  = pflag.BoolP("quiet", "q", false, "don't print URL on startup")
-	fAddr   = pflag.StringP("addr", "a", "127.0.0.1:8000", "listen address")
+	fAddr   = pflag.StringP("addr", "a", "localhost:8000", "listen address")
 	fPrefix = pflag.StringP("prefix", "P", "", "serve from a subdirectory")
 )
 
