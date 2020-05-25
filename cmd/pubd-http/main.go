@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 
@@ -37,7 +36,7 @@ func Main() error {
 		return err
 	}
 	if !*fQuiet {
-		log.Printf("http://%s%s/", l.Addr(), httppub.CleanPrefix(*fPrefix))
+		fmt.Fprintf(os.Stderr, "Running on: http://%s%s/\n", l.Addr(), httppub.CleanPrefix(*fPrefix))
 	}
 	return httppub.Serve(pubd.WithSignalHandler(context.Background()), l,
 		httppub.WithPrefix(*fPrefix, httppub.Handler(fs)))
