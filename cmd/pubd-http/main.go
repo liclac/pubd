@@ -4,42 +4,49 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/spf13/pflag"
 
 	"github.com/liclac/pubd"
+	"github.com/liclac/pubd/cmd"
 	"github.com/liclac/pubd/httppub"
 )
 
-var (
-	fQuiet  = pflag.BoolP("quiet", "q", false, "don't print URL on startup")
-	fAddr   = pflag.StringP("addr", "a", "localhost:8000", "listen address")
-	fPrefix = pflag.StringP("prefix", "P", "", "serve from a subdirectory")
-)
+const Usage = `usage: pubd-http [path]`
+
+type Config struct {
+	Quiet  bool   `toml:"quiet"`
+	Addr   string `toml:"addr"`
+	Prefix string `toml:"prefix"`
+	pubd.FileSystemConfig
+}
+
+func (cfg *Config) Flags(f *pflag.FlagSet) {
+	f.BoolVarP(&cfg.Quiet, "quiet", "q", cfg.Quiet, "don't print URL on startup")
+	f.StringVarP(&cfg.Addr, "addr", "a", cfg.Addr, "listen address")
+	f.StringVarP(&cfg.Prefix, "prefix", "P", cfg.Prefix, "serve from a subdirectory")
+	cfg.FileSystemConfig.Flags(f)
+}
 
 func Main() error {
-	pflag.Usage = func() {
-		fmt.Fprintln(os.Stderr, "usage:", filepath.Base(os.Args[0]), "[path]")
-		pflag.PrintDefaults()
+	cfg := Config{Addr: "localhost:8080"}
+	if err := cmd.Configure(&cfg, &cfg.Path, cfg.Flags, Usage, os.Args); err != nil {
+		return err
 	}
-	fsCfg := pubd.FileSystemFlags(pflag.CommandLine)
-	pflag.Parse()
-
-	fs, err := fsCfg.Build(pflag.Arg(0))
+	fs, err := cfg.FileSystemConfig.Build()
 	if err != nil {
 		return err
 	}
-
-	l, err := pubd.Listen(*fAddr)
+	l, err := pubd.Listen(cfg.Addr)
 	if err != nil {
 		return err
 	}
-	if !*fQuiet {
-		fmt.Fprintf(os.Stderr, "Running on: http://%s%s/\n", l.Addr(), httppub.CleanPrefix(*fPrefix))
+	if !cfg.Quiet {
+		fmt.Fprintf(os.Stderr, "Running on: http://%s%s/\n", l.Addr(),
+			httppub.CleanPrefix(cfg.Prefix))
 	}
 	return httppub.Serve(pubd.WithSignalHandler(context.Background()), l,
-		httppub.WithPrefix(*fPrefix, httppub.Handler(fs)))
+		httppub.WithPrefix(cfg.Prefix, httppub.Handler(fs)))
 }
 
 func main() {

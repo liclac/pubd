@@ -9,20 +9,18 @@ import (
 )
 
 type FileSystemConfig struct {
-	Exclude []string
+	Path    string   `toml:"path"` // Normally given as os.Args[1].
+	Exclude []string `toml:"exclude"`
 }
 
-func FileSystemFlags(f *pflag.FlagSet) *FileSystemConfig {
-	c := &FileSystemConfig{}
-	f.StringSliceVarP(&c.Exclude,
-		"exclude", "x", nil, "filenames or globs to exclude")
-	return c
+func (c *FileSystemConfig) Flags(f *pflag.FlagSet) {
+	f.StringSliceVarP(&c.Exclude, "exclude", "x", c.Exclude, "filenames or globs to exclude")
 }
 
 // Returns a filtered http.FileSystem at the given path.
-func (c FileSystemConfig) Build(path string) (http.FileSystem, error) {
+func (c FileSystemConfig) Build() (http.FileSystem, error) {
 	filter, err := c.filter()
-	return fileSystem{filter, http.Dir(path)}, err
+	return fileSystem{filter, http.Dir(c.Path)}, err
 }
 
 func (c FileSystemConfig) filter() (fileSystemFilter, error) {
