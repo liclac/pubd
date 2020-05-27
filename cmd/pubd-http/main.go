@@ -23,21 +23,35 @@ type Config struct {
 	cmd.FileSystemConfig
 }
 
-func (cfg *Config) Flags(f *pflag.FlagSet) {
-	f.BoolVarP(&cfg.Quiet, "quiet", "q", cfg.Quiet, "don't print URL on startup")
-	f.StringVarP(&cfg.Addr, "addr", "a", cfg.Addr, "listen address")
-	f.StringVarP(&cfg.Prefix, "prefix", "P", cfg.Prefix, "serve from a subdirectory")
-	cfg.FileSystemConfig.Flags(f)
+func Parse(args []string) (Config, error) {
+	cfg := Config{Addr: "localhost:8080"}
+	return cfg, cmd.Configure(&cfg, &cfg.Path, func(f *pflag.FlagSet) {
+		f.BoolVarP(&cfg.Quiet, "quiet", "q", cfg.Quiet, "don't print URL on startup")
+		f.StringVarP(&cfg.Addr, "addr", "a", cfg.Addr, "listen address")
+		f.StringVarP(&cfg.Prefix, "prefix", "P", cfg.Prefix, "serve from a subdirectory")
+		cfg.FileSystemConfig.Flags(f)
+	}, Usage, args)
 }
 
-func Main() error {
-	cfg := Config{Addr: "localhost:8080"}
-	if err := cmd.Configure(&cfg, &cfg.Path, cfg.Flags, Usage, os.Args); err != nil {
+func (cfg *Config) Filesystem() http.FileSystem {
+	return cfg.FileSystemConfig.Build()
+}
+
+func (cfg *Config) Handler(fs http.FileSystem) http.Handler {
+	return httppub.WithPrefix(cfg.Prefix, httppub.Handler(fs))
+}
+
+func (cfg *Config) Listen() (net.Listener, error) {
+	return pubd.Listen(cfg.Addr)
+}
+
+func Main(args []string) error {
+	cfg, err := Parse(args)
+	if err != nil {
 		return err
 	}
-	fs := cfg.FileSystemConfig.Build()
-
-	l, err := pubd.Listen(cfg.Addr)
+	h := cfg.Handler(cfg.Filesystem())
+	l, err := cfg.Listen()
 	if err != nil {
 		return err
 	}
@@ -45,13 +59,12 @@ func Main() error {
 		fmt.Fprintf(os.Stderr, "Running on: http://%s%s/\n", l.Addr(),
 			httppub.CleanPrefix(cfg.Prefix))
 	}
-
-	return httppub.Serve(pubd.WithSignalHandler(context.Background()), l,
-		httppub.WithPrefix(cfg.Prefix, httppub.Handler(fs)))
+	ctx := pubd.WithSignalHandler(context.Background())
+	return httppub.Serve(ctx, l, h)
 }
 
 func main() {
-	if err := Main(); err != nil {
+	if err := Main(os.Args); err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
