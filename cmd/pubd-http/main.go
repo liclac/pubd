@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
+	"net/http"
 	"os"
 
 	"github.com/spf13/pflag"
@@ -18,7 +20,7 @@ type Config struct {
 	Quiet  bool   `toml:"quiet"`
 	Addr   string `toml:"addr"`
 	Prefix string `toml:"prefix"`
-	pubd.FileSystemConfig
+	cmd.FileSystemConfig
 }
 
 func (cfg *Config) Flags(f *pflag.FlagSet) {
@@ -33,10 +35,8 @@ func Main() error {
 	if err := cmd.Configure(&cfg, &cfg.Path, cfg.Flags, Usage, os.Args); err != nil {
 		return err
 	}
-	fs, err := cfg.FileSystemConfig.Build()
-	if err != nil {
-		return err
-	}
+	fs := cfg.FileSystemConfig.Build()
+
 	l, err := pubd.Listen(cfg.Addr)
 	if err != nil {
 		return err
@@ -45,6 +45,7 @@ func Main() error {
 		fmt.Fprintf(os.Stderr, "Running on: http://%s%s/\n", l.Addr(),
 			httppub.CleanPrefix(cfg.Prefix))
 	}
+
 	return httppub.Serve(pubd.WithSignalHandler(context.Background()), l,
 		httppub.WithPrefix(cfg.Prefix, httppub.Handler(fs)))
 }

@@ -3,100 +3,61 @@ package pubd
 import (
 	"net/http"
 	"os"
+	"strings"
 
-	"github.com/gobwas/glob"
-	"github.com/spf13/pflag"
+	"github.com/go-git/go-billy/v5"
+	"github.com/go-git/go-git/plumbing/format/gitignore"
+	"github.com/shurcooL/httpfs/filter"
 )
 
-type FileSystemConfig struct {
-	Path    string   `toml:"path"` // Normally given as os.Args[1].
-	Exclude []string `toml:"exclude"`
-}
-
-func (c *FileSystemConfig) Flags(f *pflag.FlagSet) {
-	f.StringSliceVarP(&c.Exclude, "exclude", "x", c.Exclude, "filenames or globs to exclude")
-}
-
-// Returns a filtered http.FileSystem at the given path.
-func (c FileSystemConfig) Build() (http.FileSystem, error) {
-	filter, err := c.filter()
-	return fileSystem{filter, http.Dir(c.Path)}, err
-}
-
-func (c FileSystemConfig) filter() (fileSystemFilter, error) {
-	filter := fileSystemFilter{Exclude: make([]glob.Glob, len(c.Exclude))}
-	for i, expr := range c.Exclude {
-		g, err := glob.Compile("**" + expr + "**")
-		if err != nil {
-			return filter, err
-		}
-		filter.Exclude[i] = g
+// Retuns a filesystem which excludes files matching the given .gitignore expressions.
+func FileSystemExclude(fs http.FileSystem, exprs []string) http.FileSystem {
+	if len(exprs) == 0 {
+		return fs
 	}
-	return filter, nil
+
+	// The second argument here is the "domain" of the pattern, eg. the root directory under which
+	// it applies, as a slice of path segments ("/srv/www" -> ["srv", "www"]). In this case, we're
+	// working with a "chrooted" vfs, and only one set of patterns, so it's always "/" -> [] = nil.
+	patterns := make([]gitignore.Pattern, len(exprs))
+	for i, expr := range exprs {
+		patterns[i] = gitignore.ParsePattern(expr, nil)
+	}
+	ignored := gitignore.NewMatcher(patterns)
+
+	return filter.Keep(fs, func(path string, info os.FileInfo) bool {
+		return !ignored.Match(strings.Split(strings.Trim(path, "/"), "/"), info.IsDir())
+	})
 }
 
-type fileSystemFilter struct {
-	Exclude []glob.Glob
+// Thin adapter between billy.Filesystem and http.FileSystem.
+type httpFileSystem struct{ billy.Filesystem }
+
+// Wraps a billy.Filesystem in a http.FileSystem. The wrapped filesystem should be "chrooted",
+// in the sense that fs.Readdir("/") should read the root of the tree to be served.
+func FileSystem(fs billy.Filesystem) http.FileSystem {
+	return httpFileSystem{fs}
 }
 
-func (c fileSystemFilter) IsAllowed(name string) bool {
-	for _, g := range c.Exclude {
-		if g.Match(name) {
-			return false
-		}
-	}
-	return true
+func (fs httpFileSystem) Open(name string) (http.File, error) {
+	f, err := fs.Filesystem.Open(name)
+	return httpFile{f, fs.Filesystem, name}, err
 }
 
-// To filter an http.FileSystem, we need to build a thin wrapper around it.
-// It returns 404 for any excluded files, and returns a thin wrapper around
-// opened directories that filters Readdir().
-type fileSystem struct {
-	fileSystemFilter
-	fs http.FileSystem
+// Wraps a billy.File in a http.File.
+type httpFile struct {
+	billy.File
+	fs   billy.Filesystem
+	name string
 }
 
-func (fs fileSystem) Open(name string) (http.File, error) {
-	if !fs.IsAllowed(name) {
-		return nil, os.ErrNotExist
-	}
-	f, err := fs.fs.Open(name)
-	if err != nil {
-		return f, err
-	}
-	// Note: It's tempting to just skip the stat() call and always return
-	// a wrapper, but that would disable sendfile() optimisations on unix
-	// platforms, which is a far greater loss than any number of stat()s.
-	if info, err := f.Stat(); err != nil {
-		return f, err
-	} else if info.IsDir() {
-		return fileSystemDir{fs.fileSystemFilter, f}, nil
-	}
-	return f, nil
+// Note: os.File's Readdir can paginate, but Billy's just returns everything in one go.
+// If this causes issues, adding pagination support is trivial; f.readdir = f.readdir[:num] etc.
+func (f httpFile) Readdir(num int) ([]os.FileInfo, error) {
+	return f.fs.ReadDir(f.name)
 }
 
-// As mentioned in the comment on fileSystem, fileSystemDir filters excluded
-// files from directory listings by omitting them from Readdir().
-type fileSystemDir struct {
-	fileSystemFilter
-	http.File
-}
-
-func (d fileSystemDir) Readdir(num int) ([]os.FileInfo, error) {
-	infos, err := d.File.Readdir(num) // Careful - don't recurse!
-	if err != nil {
-		return infos, err
-	}
-	out := make([]os.FileInfo, 0, len(infos))
-	for _, info := range infos {
-		if d.IsAllowed(info.Name()) {
-			out = append(out, info)
-		}
-	}
-	// A literal reading of the docs suggests that it's semantically
-	// incorrect to return an empty slice without an accompanying error.
-	if len(out) == 0 {
-		return d.Readdir(num) // Deliberately recursive!
-	}
-	return out, nil
+// This is on os.File, but on billy.Filesystem.
+func (f httpFile) Stat() (os.FileInfo, error) {
+	return f.fs.Stat(f.name)
 }

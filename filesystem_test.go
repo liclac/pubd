@@ -1,39 +1,67 @@
 package pubd
 
 import (
+	"io/ioutil"
+	"os"
 	"testing"
 
+	"github.com/go-git/go-billy/v5/memfs"
+	"github.com/go-git/go-billy/v5/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFileSystemExclude(t *testing.T) {
 	testdata := map[string]map[string]bool{
-		"index.html": map[string]bool{
-			"index.txt":             true,
-			"index.html":            false,
-			"about.html":            true,
-			"about.html/wat":        true,
-			"subdir/index.html":     false,
-			"subdir/index.html/wat": false,
+		"index.html": {
+			"/index.txt":         true,
+			"/index.html":        false,
+			"/about.html":        true,
+			"/subdir/index.html": false,
+			"/subdir/about.html": true,
 		},
-		"*.html": map[string]bool{
-			"index.txt":             true,
-			"index.html":            false,
-			"about.html/wat":        false,
-			"subdir/index.html":     false,
-			"subdir/index.html/wat": false,
+		"*.html": {
+			"/index.txt":         true,
+			"/index.html":        false,
+			"/about.html":        false,
+			"/subdir/index.html": false,
+			"/subdir/about.html": false,
+		},
+		"subdir": {
+			"/index.txt":         true,
+			"/index.html":        true,
+			"/about.html":        true,
+			"/subdir/index.html": false,
+			"/subdir/about.html": false,
+		},
+		"subdir/*.html": {
+			"/index.txt":         true,
+			"/index.html":        true,
+			"/about.html":        true,
+			"/subdir/index.html": false,
+			"/subdir/about.html": false,
 		},
 	}
-	for exclusion, pathdata := range testdata {
-		t.Run(`"`+exclusion+`"`, func(t *testing.T) {
+	for pattern, pathdata := range testdata {
+		t.Run(`"`+pattern+`"`, func(t *testing.T) {
 			for path, allowed := range pathdata {
 				t.Run(`"`+path+`"`, func(t *testing.T) {
-					filter, err := FileSystemConfig{
-						Exclude: []string{exclusion},
-					}.filter()
-					assert.NoError(t, err)
-					isAllowed := filter.IsAllowed(path)
-					assert.Equal(t, allowed, isAllowed)
+					baseFS := memfs.New()
+					require.NoError(t, baseFS.MkdirAll("subdir", 0000))
+					for path := range pathdata {
+						require.NoError(t, util.WriteFile(baseFS, path, []byte(path), 0000))
+					}
+
+					fs := FileSystemExclude(FileSystem(baseFS), []string{pattern})
+					f, err := fs.Open(path)
+					if !allowed {
+						assert.True(t, os.IsNotExist(err), "should return ErrNotExist")
+					} else {
+						require.NoError(t, err)
+						data, err := ioutil.ReadAll(f)
+						require.NoError(t, err)
+						assert.Equal(t, path, string(data))
+					}
 				})
 			}
 		})
