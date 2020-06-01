@@ -3,12 +3,18 @@ package pubd
 import (
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-git/plumbing/format/gitignore"
 	"github.com/shurcooL/httpfs/filter"
 )
+
+// Sorts a slice of FileInfo structs in alphabetical order.
+func SortFileInfos(infos []os.FileInfo) {
+	sort.Slice(infos, func(i, j int) bool { return infos[i].Name() < infos[j].Name() })
+}
 
 // Retuns a filesystem which excludes files matching the given .gitignore expressions.
 func FileSystemExclude(fs http.FileSystem, exprs []string) http.FileSystem {
