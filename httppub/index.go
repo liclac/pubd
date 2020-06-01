@@ -25,7 +25,7 @@ func SimpleIndex() Indexer {
 			fmt.Fprintf(rw, "<a href=\"%s\">%s</a>\n", u.String(), html.EscapeString(name))
 		}
 
-		fmt.Fprintf(rw, "</pre>\n")
+		fmt.Fprintf(rw, "</pre>")
 		return nil
 	}
 }

@@ -16,7 +16,7 @@ func TestSimpleIndexEmpty(t *testing.T) {
 	assert.NoError(t, SimpleIndex()(rw, req, testutil.FileInfo{FName: "dir"}, []os.FileInfo{}))
 	assert.Equal(t, http.StatusOK, rw.Code)
 	assert.Equal(t, "text/html; charset=utf-8", rw.Header().Get("Content-Type"))
-	assert.Equal(t, "<pre>\n</pre>\n", rw.Body.String())
+	assert.Equal(t, "<pre>\n</pre>", rw.Body.String())
 }
 
 func TestSimpleIndex(t *testing.T) {
@@ -31,6 +31,5 @@ func TestSimpleIndex(t *testing.T) {
 	assert.Equal(t, `<pre>
 <a href=".git/">.git/</a>
 <a href="index.html">index.html</a>
-</pre>
-`, rw.Body.String())
+</pre>`, rw.Body.String())
 }
