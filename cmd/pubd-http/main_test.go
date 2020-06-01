@@ -44,7 +44,7 @@ func TestParse(t *testing.T) {
 			out.Addr = "localhost:8080"
 		}
 		t.Run(in, func(t *testing.T) {
-			cfg, err := Parse(strings.Split(in, " "))
+			cfg, err := Parse(memfs.New(), strings.Split(in, " "))
 			require.NoError(t, err)
 			assert.Equal(t, out, cfg)
 		})
