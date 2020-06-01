@@ -26,18 +26,18 @@ func TestParse(t *testing.T) {
 	type FSC = cmd.FileSystemConfig // These lines are getting too long.
 
 	testdata := map[string]Config{
-		"":                             {},
-		"www":                          {FileSystemConfig: FSC{Path: "www"}},
-		"-a localhost:9999":            {Addr: "localhost:9999"},
-		"--addr=localhost:9999":        {Addr: "localhost:9999"},
-		"-q":                           {Quiet: true},
-		"--quiet":                      {Quiet: true},
-		"-P ~liclac":                   {Prefix: "~liclac"},
-		"--prefix=~liclac":             {Prefix: "~liclac"},
-		"-x .git":                      {FileSystemConfig: FSC{Exclude: []string{".git"}}},
-		"--exclude=.git":               {FileSystemConfig: FSC{Exclude: []string{".git"}}},
-		"-x .git -x tmp":               {FileSystemConfig: FSC{Exclude: []string{".git", "tmp"}}},
-		"--exclude=.git --exclude=tmp": {FileSystemConfig: FSC{Exclude: []string{".git", "tmp"}}},
+		"0":                              {},
+		"0 www":                          {FileSystemConfig: FSC{Path: "www"}},
+		"0 -a localhost:9999":            {Addr: "localhost:9999"},
+		"0 --addr=localhost:9999":        {Addr: "localhost:9999"},
+		"0 -q":                           {Quiet: true},
+		"0 --quiet":                      {Quiet: true},
+		"0 -P ~liclac":                   {Prefix: "~liclac"},
+		"0 --prefix=~liclac":             {Prefix: "~liclac"},
+		"0 -x .git":                      {FileSystemConfig: FSC{Exclude: []string{".git"}}},
+		"0 --exclude=.git":               {FileSystemConfig: FSC{Exclude: []string{".git"}}},
+		"0 -x .git -x tmp":               {FileSystemConfig: FSC{Exclude: []string{".git", "tmp"}}},
+		"0 --exclude=.git --exclude=tmp": {FileSystemConfig: FSC{Exclude: []string{".git", "tmp"}}},
 	}
 	for in, out := range testdata {
 		if out.Addr == "" {

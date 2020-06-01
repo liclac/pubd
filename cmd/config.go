@@ -46,11 +46,11 @@ func Configure(
 
 	// Give posArg the first argument, if any. Refuse leftover arguments.
 	posArgs := flagSet.Args()
-	if len(posArgs) > 0 && posArg != nil {
-		*posArg = posArgs[0]
-		posArgs = posArgs[1:]
+	if len(posArgs) > 1 && posArg != nil {
+		*posArg = posArgs[1]
+		posArgs = posArgs[2:]
 	}
-	if len(posArgs) > 0 {
+	if len(posArgs) > 1 {
 		flagSet.Usage()
 		return fmt.Errorf("too many arguments")
 	}
