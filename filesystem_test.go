@@ -4,45 +4,28 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-billy/v5/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/liclac/pubd/testutil"
 )
-
-var _ os.FileInfo = testFileInfo{}
-
-type testFileInfo struct {
-	name    string
-	size    int64
-	mode    os.FileMode
-	modTime time.Time
-	isDir   bool
-	sys     interface{}
-}
-
-func (i testFileInfo) Name() string       { return i.name }
-func (i testFileInfo) Size() int64        { return i.size }
-func (i testFileInfo) Mode() os.FileMode  { return i.mode }
-func (i testFileInfo) ModTime() time.Time { return i.modTime }
-func (i testFileInfo) IsDir() bool        { return i.isDir }
-func (i testFileInfo) Sys() interface{}   { return i.sys }
 
 func TestSortFileInfos(t *testing.T) {
 	infos := []os.FileInfo{
-		testFileInfo{name: "a"},
-		testFileInfo{name: "c"},
-		testFileInfo{name: "ab"},
-		testFileInfo{name: "d"},
+		testutil.FileInfo{FName: "a"},
+		testutil.FileInfo{FName: "c"},
+		testutil.FileInfo{FName: "ab"},
+		testutil.FileInfo{FName: "d"},
 	}
 	SortFileInfos(infos)
 	assert.Equal(t, []os.FileInfo{
-		testFileInfo{name: "a"},
-		testFileInfo{name: "ab"},
-		testFileInfo{name: "c"},
-		testFileInfo{name: "d"},
+		testutil.FileInfo{FName: "a"},
+		testutil.FileInfo{FName: "ab"},
+		testutil.FileInfo{FName: "c"},
+		testutil.FileInfo{FName: "d"},
 	}, infos)
 }
 
