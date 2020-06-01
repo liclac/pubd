@@ -8,13 +8,15 @@ import (
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-billy/v5/util"
-	"github.com/liclac/pubd/cmd"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/liclac/pubd/cmd"
 )
 
 func mkTestFS(t *testing.T, files map[string]string) billy.Filesystem {
 	fs := memfs.New()
+	require.NoError(t, fs.MkdirAll("/", 0000))
 	for name, contents := range files {
 		require.NoError(t, fs.MkdirAll(path.Dir(name), 0000))
 		require.NoError(t, util.WriteFile(fs, name, []byte(contents), 0000))

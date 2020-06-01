@@ -6,11 +6,6 @@ import (
 	"net/http"
 )
 
-// Returns an HTTP handler that serves from a filesystem.
-func Handler(fs http.FileSystem) http.Handler {
-	return http.FileServer(fs)
-}
-
 // Serves HTTP requests until the context terminates, then closes the
 // listener in order to shut down gracefully.
 func Serve(ctx context.Context, l net.Listener, h http.Handler) error {
