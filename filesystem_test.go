@@ -47,12 +47,12 @@ func TestSortFileInfos(t *testing.T) {
 }
 
 func TestFileSystem(t *testing.T) {
-	baseFS := memfs.New()
-	require.NoError(t, baseFS.MkdirAll("/.git", 0000))
-	require.NoError(t, util.WriteFile(baseFS, "/.git/HEAD", []byte("ref: refs/heads/master"), 0000))
-	fs := FileSystem(baseFS)
-
 	t.Run(".git", func(t *testing.T) {
+		baseFS := memfs.New()
+		require.NoError(t, baseFS.MkdirAll("/.git", 0000))
+		require.NoError(t, util.WriteFile(baseFS, "/.git/HEAD", []byte("ref: refs/heads/master"), 0000))
+		fs := FileSystem(baseFS)
+
 		d, err := fs.Open("/.git")
 		require.NoError(t, err)
 		assert.IsType(t, httpDir{}, d)
@@ -84,6 +84,11 @@ func TestFileSystem(t *testing.T) {
 	})
 
 	t.Run("HEAD", func(t *testing.T) {
+		baseFS := memfs.New()
+		require.NoError(t, baseFS.MkdirAll("/.git", 0000))
+		require.NoError(t, util.WriteFile(baseFS, "/.git/HEAD", []byte("ref: refs/heads/master"), 0000))
+		fs := FileSystem(baseFS)
+
 		f, err := fs.Open("/.git/HEAD")
 		require.NoError(t, err)
 		assert.IsType(t, httpFile{}, f)
@@ -108,6 +113,12 @@ func TestFileSystem(t *testing.T) {
 		})
 
 		assert.NoError(t, f.Close())
+	})
+
+	t.Run("Nonexistent", func(t *testing.T) {
+		fs := FileSystem(memfs.New())
+		_, err := fs.Open("/nonexistent")
+		assert.EqualError(t, err, "file does not exist")
 	})
 }
 
