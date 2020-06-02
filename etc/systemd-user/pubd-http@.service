@@ -1,0 +1,29 @@
+[Unit]
+Description=HTTP file server
+Documentation=https://github.com/liclac/pubd
+
+[Service]
+ExecStart=/bin/sh --login -c 'exec $HOME/bin/pubd-http -x .pubd.toml -C .pubd.toml'
+WorkingDirectory=%I
+Restart=on-failure
+RestartSec=5
+
+# We only need read-only access to the public directory.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateMounts=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictSUIDSGID=true
+
+# No mixed-arch shenanigans.
+SystemCallArchitectures=native
+
+# Disable some less sensible syscalls, like reboot().
+SystemCallFilter=@system-service
+
+[Install]
+WantedBy=default.target
