@@ -43,7 +43,7 @@ func TestParse(t *testing.T) {
 	}
 	for in, out := range testdata {
 		if out.Addr == "" {
-			out.Addr = "localhost:8080"
+			out.Addr = "localhost:8888"
 		}
 		if out.FileSystemConfig.Path == "" {
 			out.FileSystemConfig.Path = cliutil.FileSystemDefaults().Path

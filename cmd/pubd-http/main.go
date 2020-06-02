@@ -27,7 +27,7 @@ type Config struct {
 }
 
 func Parse(fs billy.Filesystem, args []string) (Config, error) {
-	cfg := Config{Addr: "localhost:8080", FileSystemConfig: cliutil.FileSystemDefaults()}
+	cfg := Config{Addr: "localhost:8888", FileSystemConfig: cliutil.FileSystemDefaults()}
 	return cfg, cliutil.Configure(&cfg, &cfg.Path, func(f *pflag.FlagSet) {
 		f.BoolVarP(&cfg.Quiet, "quiet", "q", cfg.Quiet, "don't print URL on startup")
 		f.StringVarP(&cfg.Addr, "addr", "a", cfg.Addr, "listen address")
