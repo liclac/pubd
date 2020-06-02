@@ -45,6 +45,9 @@ func TestParse(t *testing.T) {
 		if out.Addr == "" {
 			out.Addr = "localhost:8080"
 		}
+		if out.FileSystemConfig.Path == "" {
+			out.FileSystemConfig.Path = cliutil.FileSystemDefaults().Path
+		}
 		t.Run(in, func(t *testing.T) {
 			cfg, err := Parse(memfs.New(), strings.Split(in, " "))
 			require.NoError(t, err)

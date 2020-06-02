@@ -2,6 +2,7 @@ package cliutil
 
 import (
 	"net/http"
+	"os"
 
 	"github.com/go-git/go-billy/v5"
 	"github.com/spf13/pflag"
@@ -13,6 +14,12 @@ import (
 type FileSystemConfig struct {
 	Path    string   `toml:"path"` // Normally given as os.Args[1].
 	Exclude []string `toml:"exclude"`
+}
+
+// Defaults for FileSystemConfig.
+func FileSystemDefaults() FileSystemConfig {
+	pwd, _ := os.Getwd()
+	return FileSystemConfig{Path: pwd}
 }
 
 func (c *FileSystemConfig) Flags(f *pflag.FlagSet) {
