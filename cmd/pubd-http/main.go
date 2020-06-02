@@ -14,7 +14,7 @@ import (
 
 	"github.com/liclac/pubd"
 	"github.com/liclac/pubd/cliutil"
-	"github.com/liclac/pubd/httppub"
+	"github.com/liclac/pubd/proto/httppub"
 )
 
 const Usage = `usage: pubd-http [path]`
