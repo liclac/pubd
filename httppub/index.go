@@ -14,18 +14,30 @@ type Indexer func(rw http.ResponseWriter, req *http.Request, dir os.FileInfo, in
 // Generate a simple index, very similar to the one used by http.FileServer.
 func SimpleIndex() Indexer {
 	return func(rw http.ResponseWriter, req *http.Request, dir os.FileInfo, infos []os.FileInfo) error {
-		rw.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprintf(rw, "<pre>\n")
+		contentType := Negotiate(req.Header.Get("Accept"), ContentTypePlainText, ContentTypeHTML)
+		rw.Header().Set("Content-Type", contentType+"; charset=utf-8")
+
+		if contentType == ContentTypeHTML {
+			fmt.Fprintf(rw, "<pre>\n")
+		}
+
 		for _, d := range infos {
 			name := d.Name()
 			if d.IsDir() {
 				name += "/"
 			}
 			u := url.URL{Path: name}
-			fmt.Fprintf(rw, "<a href=\"%s\">%s</a>\n", u.String(), html.EscapeString(name))
+
+			if contentType == ContentTypeHTML {
+				fmt.Fprintf(rw, "<a href=\"%s\">%s</a>\n", u.String(), html.EscapeString(name))
+			} else {
+				fmt.Fprintln(rw, name)
+			}
 		}
 
-		fmt.Fprintf(rw, "</pre>")
+		if contentType == ContentTypeHTML {
+			fmt.Fprintf(rw, "</pre>")
+		}
 		return nil
 	}
 }

@@ -82,10 +82,10 @@ func TestHandlerSimpleIndex(t *testing.T) {
 		require.NoError(t, err)
 		defer rsp.Body.Close()
 		assert.Equal(t, http.StatusOK, rsp.StatusCode)
-		assert.Equal(t, "text/html; charset=utf-8", rsp.Header.Get("Content-Type"))
+		assert.Equal(t, "text/plain; charset=utf-8", rsp.Header.Get("Content-Type"))
 		body, err := ioutil.ReadAll(rsp.Body)
 		require.NoError(t, err)
-		assert.Equal(t, "<pre>\n<a href=\".git/\">.git/</a>\n</pre>", string(body))
+		assert.Equal(t, ".git/\n", string(body))
 	})
 
 	t.Run("GET /.git/HEAD", func(t *testing.T) {
