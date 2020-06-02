@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/liclac/pubd/cmd"
+	"github.com/liclac/pubd/cliutil"
 )
 
 func mkTestFS(t *testing.T, files map[string]string) billy.Filesystem {
@@ -25,7 +25,7 @@ func mkTestFS(t *testing.T, files map[string]string) billy.Filesystem {
 }
 
 func TestParse(t *testing.T) {
-	type FSC = cmd.FileSystemConfig // These lines are getting too long.
+	type FSC = cliutil.FileSystemConfig // These lines are getting too long.
 
 	testdata := map[string]Config{
 		"0":                              {},

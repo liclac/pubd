@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/liclac/pubd"
-	"github.com/liclac/pubd/cmd"
+	"github.com/liclac/pubd/cliutil"
 	"github.com/liclac/pubd/httppub"
 )
 
@@ -23,12 +23,12 @@ type Config struct {
 	Quiet  bool   `toml:"quiet"`
 	Addr   string `toml:"addr"`
 	Prefix string `toml:"prefix"`
-	cmd.FileSystemConfig
+	cliutil.FileSystemConfig
 }
 
 func Parse(fs billy.Filesystem, args []string) (Config, error) {
 	cfg := Config{Addr: "localhost:8080"}
-	return cfg, cmd.Configure(&cfg, &cfg.Path, func(f *pflag.FlagSet) {
+	return cfg, cliutil.Configure(&cfg, &cfg.Path, func(f *pflag.FlagSet) {
 		f.BoolVarP(&cfg.Quiet, "quiet", "q", cfg.Quiet, "don't print URL on startup")
 		f.StringVarP(&cfg.Addr, "addr", "a", cfg.Addr, "listen address")
 		f.StringVarP(&cfg.Prefix, "prefix", "P", cfg.Prefix, "serve from a subdirectory")
