@@ -1,9 +1,10 @@
 [Unit]
-Description=HTTP file server
+Description=unsurprising HTTP file server
 Documentation=https://github.com/liclac/pubd
+Requires=pubd-http@%i.socket
 
 [Service]
-ExecStart=/bin/sh --login -c 'exec $HOME/bin/pubd-http -x .pubd.toml -C .pubd.toml'
+ExecStart=/bin/sh --login -c 'exec $HOME/bin/pubd-http -a systemd/ -x .pubd.toml -C .pubd.toml'
 WorkingDirectory=%I
 Restart=on-failure
 RestartSec=5

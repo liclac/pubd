@@ -1,0 +1,9 @@
+[Unit]
+Description=unsurprising HTTP file server
+Documentation=https://github.com/liclac/pubd
+
+[Socket]
+ListenStream=[::1]:8888
+
+[Install]
+WantedBy=default.target

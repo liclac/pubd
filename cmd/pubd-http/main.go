@@ -11,6 +11,7 @@ import (
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/spf13/pflag"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/liclac/pubd"
 	"github.com/liclac/pubd/cliutil"
@@ -47,7 +48,7 @@ func (cfg *Config) Handler(fs http.FileSystem) http.Handler {
 		}))
 }
 
-func (cfg *Config) Listen() (net.Listener, error) {
+func (cfg *Config) Listen() ([]net.Listener, error) {
 	return pubd.Listen(cfg.Addr)
 }
 
@@ -61,16 +62,22 @@ func Main(hostFS billy.Filesystem, args []string) error {
 		return err
 	}
 	h := cfg.Handler(fs)
-	l, err := cfg.Listen()
+	ls, err := cfg.Listen()
 	if err != nil {
 		return err
 	}
-	if !cfg.Quiet {
-		fmt.Fprintf(os.Stderr, "Running on: http://%s%s/\n", l.Addr(),
-			httppub.CleanPrefix(cfg.Prefix))
+	g, ctx := errgroup.WithContext(pubd.WithSignalHandler(context.Background()))
+	for _, l := range ls {
+		l := l
+		g.Go(func() error {
+			if !cfg.Quiet {
+				fmt.Fprintf(os.Stderr, "Running on: http://%s%s/\n", l.Addr(),
+					httppub.CleanPrefix(cfg.Prefix))
+			}
+			return httppub.Serve(ctx, l, h)
+		})
 	}
-	ctx := pubd.WithSignalHandler(context.Background())
-	return httppub.Serve(ctx, l, h)
+	return g.Wait()
 }
 
 func main() {
