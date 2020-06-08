@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/coreos/go-systemd/activation"
+	"github.com/coreos/go-systemd/v22/activation"
 )
 
 // Listen on file descriptors passed by systemd socket activation.

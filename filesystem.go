@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/go-git/go-billy/v5"
-	"github.com/go-git/go-git/plumbing/format/gitignore"
+	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
 	"github.com/shurcooL/httpfs/filter"
 )
 
