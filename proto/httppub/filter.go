@@ -3,6 +3,9 @@ package httppub
 import (
 	"net/http"
 	"strings"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 // Ensures that the prefix for WithPrefix has a leading and trailing '/'.
@@ -42,4 +45,34 @@ func CleanPrefix(prefix string) string {
 // Serve from a subdirectory, rather than the root. Paths outside prefix 404.
 func WithPrefix(prefix string, next http.Handler) http.Handler {
 	return http.StripPrefix(CleanPrefix(prefix), next)
+}
+
+// http.ResponseWriter wrapper used by WithAccessLog.
+type accessLogResponseWriter struct {
+	RW         http.ResponseWriter
+	StatusCode int
+}
+
+func (rw accessLogResponseWriter) Header() http.Header         { return rw.RW.Header() }
+func (rw accessLogResponseWriter) Write(b []byte) (int, error) { return rw.RW.Write(b) }
+func (rw *accessLogResponseWriter) WriteHeader(statusCode int) {
+	rw.StatusCode = statusCode
+	rw.RW.WriteHeader(statusCode)
+}
+
+// Logs all requests and response codes.
+func WithAccessLog(L *zap.Logger, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(rw_ http.ResponseWriter, req *http.Request) {
+		rw := accessLogResponseWriter{RW: rw_, StatusCode: http.StatusOK}
+		next.ServeHTTP(&rw, req)
+
+		level := zapcore.InfoLevel
+		if rw.StatusCode >= 300 {
+			level = zapcore.WarnLevel
+		}
+		if ce := L.Check(level, ""); ce != nil {
+			ce.Message = req.Method + " " + req.URL.Path
+			ce.Write(zap.Int("status", rw.StatusCode))
+		}
+	})
 }

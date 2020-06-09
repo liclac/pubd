@@ -6,10 +6,18 @@ import (
 	"path"
 
 	"github.com/liclac/pubd"
+	"go.uber.org/zap"
 )
 
+type ErrorFn func(err error)
+
+// ErrorFn that logs errors with a warning severity.
+func LogErrors(L *zap.Logger) ErrorFn {
+	return func(err error) { L.Warn("Error", zap.Error(err)) }
+}
+
 // Returns an HTTP handler that serves from a filesystem.
-func Handler(fs http.FileSystem, idxFn Indexer, errCb func(err error)) http.Handler {
+func Handler(fs http.FileSystem, idxFn Indexer, errCb ErrorFn) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		if err := handle(rw, req, fs, idxFn); err != nil {
 			if errCb != nil {

@@ -42,11 +42,10 @@ func (cfg *Config) Filesystem(fs billy.Filesystem) (http.FileSystem, error) {
 }
 
 func (cfg *Config) Handler(L *zap.Logger, fs http.FileSystem) http.Handler {
-	L = L.Named("handler")
 	return httppub.WithPrefix(cfg.Prefix,
-		httppub.Handler(fs, httppub.SimpleIndex(), func(err error) {
-			L.Warn("Request Error", zap.Error(err))
-		}))
+		httppub.WithAccessLog(L.Named("access"),
+			httppub.Handler(fs, httppub.SimpleIndex(), httppub.LogErrors(L.Named("req"))),
+		))
 }
 
 func (cfg *Config) Server(L *zap.Logger, h http.Handler) pubd.Server {
