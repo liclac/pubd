@@ -32,8 +32,6 @@ func TestParse(t *testing.T) {
 		"0 www":                          {FileSystemConfig: FSC{Path: "www"}},
 		"0 -a localhost:9999":            {Addr: "localhost:9999"},
 		"0 --addr=localhost:9999":        {Addr: "localhost:9999"},
-		"0 -q":                           {Quiet: true},
-		"0 --quiet":                      {Quiet: true},
 		"0 -P ~liclac":                   {Prefix: "~liclac"},
 		"0 --prefix=~liclac":             {Prefix: "~liclac"},
 		"0 -x .git":                      {FileSystemConfig: FSC{Exclude: []string{".git"}}},

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"os"
@@ -11,6 +10,8 @@ import (
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/spf13/pflag"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/liclac/pubd"
 	"github.com/liclac/pubd/cliutil"
@@ -20,19 +21,19 @@ import (
 const Usage = `usage: pubd-http [path]`
 
 type Config struct {
-	Quiet  bool   `toml:"quiet"`
 	Addr   string `toml:"addr"`
 	Prefix string `toml:"prefix"`
 	cliutil.FileSystemConfig
+	cliutil.LogConfig
 }
 
 func Parse(fs billy.Filesystem, args []string) (Config, error) {
 	cfg := Config{Addr: "localhost:8888", FileSystemConfig: cliutil.FileSystemDefaults()}
 	return cfg, cliutil.Configure(&cfg, &cfg.Path, func(f *pflag.FlagSet) {
-		f.BoolVarP(&cfg.Quiet, "quiet", "q", cfg.Quiet, "don't print URL on startup")
 		f.StringVarP(&cfg.Addr, "addr", "a", cfg.Addr, "listen address")
 		f.StringVarP(&cfg.Prefix, "prefix", "P", cfg.Prefix, "serve from a subdirectory")
 		cfg.FileSystemConfig.Flags(f)
+		cfg.LogConfig.Flags(f)
 	}, Usage, args)
 }
 
@@ -40,18 +41,20 @@ func (cfg *Config) Filesystem(fs billy.Filesystem) (http.FileSystem, error) {
 	return cfg.FileSystemConfig.Build(fs)
 }
 
-func (cfg *Config) Handler(fs http.FileSystem) http.Handler {
+func (cfg *Config) Handler(L *zap.Logger, fs http.FileSystem) http.Handler {
+	L = L.Named("handler")
 	return httppub.WithPrefix(cfg.Prefix,
 		httppub.Handler(fs, httppub.SimpleIndex(), func(err error) {
-			log.Printf("[ERR] http: %s", err)
+			L.Warn("Request Error", zap.Error(err))
 		}))
 }
 
-func (cfg *Config) Server(h http.Handler) pubd.Server {
+func (cfg *Config) Server(L *zap.Logger, h http.Handler) pubd.Server {
+	L = L.Named("server")
 	return func(ctx context.Context, l net.Listener) error {
-		if !cfg.Quiet {
-			fmt.Fprintf(os.Stderr, "Running on: http://%s%s/\n", l.Addr(),
-				httppub.CleanPrefix(cfg.Prefix))
+		if ce := L.Check(zapcore.InfoLevel, "Running"); ce != nil {
+			addr := fmt.Sprintf("http://%s%s/", l.Addr(), httppub.CleanPrefix(cfg.Prefix))
+			ce.Write(zap.String("addr", addr))
 		}
 		return httppub.Serve(ctx, l, h)
 	}
@@ -66,8 +69,9 @@ func Main(hostFS billy.Filesystem, args []string) error {
 	if err != nil {
 		return err
 	}
+	L := cfg.Logger().Named("http")
 	ctx := pubd.WithSignalHandler(context.Background())
-	return pubd.ListenAndServe(ctx, cfg.Addr, cfg.Server(cfg.Handler(fs)))
+	return pubd.ListenAndServe(ctx, cfg.Addr, cfg.Server(L, cfg.Handler(L, fs)))
 }
 
 func main() {
