@@ -27,6 +27,11 @@ func handle(rw http.ResponseWriter, req *http.Request, fs http.FileSystem, idxFn
 	}
 
 	fpath := path.Clean(req.URL.Path)
+	if fpath == "" {
+		fpath = "/"
+	}
+	req.URL.Path = fpath
+
 	f, err := fs.Open(fpath)
 	if err != nil {
 		return err
