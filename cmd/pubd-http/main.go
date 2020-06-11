@@ -50,13 +50,13 @@ func (cfg *Config) Handler(L *zap.Logger, fs http.FileSystem) http.Handler {
 
 func (cfg *Config) Server(L *zap.Logger, h http.Handler) pubd.Server {
 	L = L.Named("server")
-	return func(ctx context.Context, l net.Listener) error {
+	return pubd.ServerFunc(func(ctx context.Context, l net.Listener) error {
 		if ce := L.Check(zapcore.InfoLevel, "Running"); ce != nil {
 			addr := fmt.Sprintf("http://%s%s/", l.Addr(), httppub.CleanPrefix(cfg.Prefix))
 			ce.Write(zap.String("addr", addr))
 		}
 		return httppub.Serve(ctx, l, h)
-	}
+	})
 }
 
 func Main(hostFS billy.Filesystem, args []string) error {

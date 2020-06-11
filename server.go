@@ -7,8 +7,17 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// A function that accepts connections on l until ctx expires, then gracefully shuts down.
-type Server func(ctx context.Context, l net.Listener) error
+type Server interface {
+	// Accepts connections on l until ctx expires, then gracefully shuts down.
+	Serve(ctx context.Context, l net.Listener) error
+}
+
+// Wraps a Serve closure in a Server.
+type ServerFunc func(ctx context.Context, l net.Listener) error
+
+func (fn ServerFunc) Serve(ctx context.Context, l net.Listener) error {
+	return fn(ctx, l)
+}
 
 // Runs an instance of srv for each listener. The context passed to each srv is a child
 // of ctx, which is cancelled when the first instance returns.
@@ -16,7 +25,7 @@ func Serve(ctx context.Context, listeners []net.Listener, srv Server) error {
 	g, ctx := errgroup.WithContext(ctx)
 	for _, l := range listeners {
 		l := l
-		g.Go(func() error { return srv(ctx, l) })
+		g.Go(func() error { return srv.Serve(ctx, l) })
 	}
 	return g.Wait()
 }
