@@ -92,12 +92,12 @@ func (s *Server) ServeConn(ctx context.Context, nConn net.Conn, cfg ssh.ServerCo
 		L.Error("Handshake failed", zap.Error(err))
 		return
 	}
+	L = L.With(zap.String("user", sConn.User()))
 	defer sConn.Close()
 
-	L = L.With(zap.String("user", sConn.User()))
-	L.Info("Connected")
-	defer L.Info("Disconnected")
-
+	connL := L.Named("conn")
+	connL.Info("Connected")
+	defer connL.Info("Disconnected")
 	for {
 		select {
 		case newChan, ok := <-newChanC:
@@ -105,9 +105,9 @@ func (s *Server) ServeConn(ctx context.Context, nConn net.Conn, cfg ssh.ServerCo
 				return // Connection closed
 			}
 			typ := newChan.ChannelType()
-			L.Warn("Unknown top-level channel type", zap.String("type", typ))
+			L.Warn("Unknown channel requested", zap.String("type", typ))
 			if err := newChan.Reject(ssh.UnknownChannelType, typ); err != nil {
-				L.Warn("Couldn't reject top-level channel request", zap.String("type", typ), zap.Error(err))
+				L.Warn("Error rejecting channel", zap.String("type", typ), zap.Error(err))
 			}
 		case req, ok := <-reqC:
 			if !ok {
