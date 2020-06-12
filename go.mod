@@ -11,5 +11,6 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.5.1
 	go.uber.org/zap v1.15.0
+	golang.org/x/crypto v0.0.0-20200302210943-78000ba7a073
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 )
