@@ -172,9 +172,13 @@ func (s *Server) ServeSession(ctx context.Context, L *zap.Logger, ch ssh.Channel
 				return
 
 			// Supporting commands that don't do anything, but shouldn't error.
-			case "pty-req", "x11-req", "env", "window-change", "xon-xoff", "signal":
+			case "pty-req", "env", "window-change":
 				L.Debug("Discarding request", zap.String("type", req.Type))
 				lazyReply(L, req, true)
+
+			// Known unsupported commands.
+			case "x11-req", "xon-xoff", "signal":
+				L.Debug("Unsupported request", zap.String("type", req.Type))
 
 			// ???
 			default:
