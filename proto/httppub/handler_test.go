@@ -10,15 +10,12 @@ import (
 	"github.com/go-git/go-billy/v5/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/liclac/pubd"
 )
 
 func TestHandlerNoIndex(t *testing.T) {
-	baseFS := memfs.New()
-	require.NoError(t, baseFS.MkdirAll("/.git", 0000))
-	require.NoError(t, util.WriteFile(baseFS, "/.git/HEAD", []byte("ref: refs/heads/master"), 0000))
-	fs := pubd.FileSystem(baseFS)
+	fs := memfs.New()
+	require.NoError(t, fs.MkdirAll("/.git", 0000))
+	require.NoError(t, util.WriteFile(fs, "/.git/HEAD", []byte("ref: refs/heads/master"), 0000))
 
 	srv := httptest.NewServer(Handler(fs, nil, nil))
 	defer srv.Close()
@@ -58,10 +55,9 @@ func TestHandlerNoIndex(t *testing.T) {
 }
 
 func TestHandlerSimpleIndex(t *testing.T) {
-	baseFS := memfs.New()
-	require.NoError(t, baseFS.MkdirAll("/.git", 0000))
-	require.NoError(t, util.WriteFile(baseFS, "/.git/HEAD", []byte("ref: refs/heads/master"), 0000))
-	fs := pubd.FileSystem(baseFS)
+	fs := memfs.New()
+	require.NoError(t, fs.MkdirAll("/.git", 0000))
+	require.NoError(t, util.WriteFile(fs, "/.git/HEAD", []byte("ref: refs/heads/master"), 0000))
 
 	srv := httptest.NewServer(Handler(fs, SimpleIndex(), nil))
 	defer srv.Close()

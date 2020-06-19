@@ -5,8 +5,10 @@ import (
 	"os"
 	"path"
 
-	"github.com/liclac/pubd"
+	"github.com/go-git/go-billy/v5"
 	"go.uber.org/zap"
+
+	"github.com/liclac/pubd"
 )
 
 type ErrorFn func(err error)
@@ -17,9 +19,10 @@ func LogErrors(L *zap.Logger) ErrorFn {
 }
 
 // Returns an HTTP handler that serves from a filesystem.
-func Handler(fs http.FileSystem, idxFn Indexer, errCb ErrorFn) http.Handler {
+func Handler(fs billy.Filesystem, idxFn Indexer, errCb ErrorFn) http.Handler {
+	httpFS := FileSystem(fs) // TODO: Just use a billy.Filesystem.
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		if err := handle(rw, req, fs, idxFn); err != nil {
+		if err := handle(rw, req, httpFS, idxFn); err != nil {
 			if errCb != nil {
 				errCb(err)
 			}

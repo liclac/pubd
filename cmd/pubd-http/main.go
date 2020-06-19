@@ -37,11 +37,11 @@ func Parse(fs billy.Filesystem, args []string) (Config, error) {
 	}, Usage, args)
 }
 
-func (cfg *Config) Filesystem(fs billy.Filesystem) (http.FileSystem, error) {
+func (cfg *Config) Filesystem(fs billy.Filesystem) (billy.Filesystem, error) {
 	return cfg.FileSystemConfig.Build(fs)
 }
 
-func (cfg *Config) Handler(L *zap.Logger, fs http.FileSystem) http.Handler {
+func (cfg *Config) Handler(L *zap.Logger, fs billy.Filesystem) http.Handler {
 	return httppub.WithPrefix(cfg.Prefix,
 		httppub.WithAccessLog(L.Named("access"),
 			httppub.Handler(fs, httppub.SimpleIndex(), httppub.LogErrors(L.Named("req"))),

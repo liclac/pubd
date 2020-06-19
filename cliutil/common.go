@@ -1,7 +1,6 @@
 package cliutil
 
 import (
-	"net/http"
 	"os"
 
 	"github.com/go-git/go-billy/v5"
@@ -26,11 +25,10 @@ func (c *FileSystemConfig) Flags(f *pflag.FlagSet) {
 	f.StringSliceVarP(&c.Exclude, "exclude", "x", c.Exclude, "filenames/.gitignore patterns to exclude")
 }
 
-func (c FileSystemConfig) Build(fs billy.Filesystem) (http.FileSystem, error) {
+func (c FileSystemConfig) Build(fs billy.Filesystem) (billy.Filesystem, error) {
 	fs, err := fs.Chroot(c.Path)
 	if err != nil {
 		return nil, err
 	}
-	httpFS := pubd.FileSystem(fs)
-	return pubd.FileSystemExclude(httpFS, c.Exclude), nil
+	return pubd.FileSystemExclude(fs, c.Exclude), nil
 }
