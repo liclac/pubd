@@ -2,26 +2,44 @@ package sshpub
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"sync"
 
 	"go.uber.org/zap"
 	"golang.org/x/crypto/ssh"
 
+	"github.com/go-git/go-billy/v5"
 	"github.com/liclac/pubd"
 )
 
 var _ pubd.Server = Server{}
+var _ Subsystem = SubsystemFunc(nil)
 
-type Server struct {
-	L       *zap.Logger
-	HostKey ssh.Signer
+// A subsystem offered by the SSH session's 'subsystem' command.
+type Subsystem interface {
+	Exec(context.Context, *zap.Logger, billy.Filesystem, io.ReadWriteCloser) error
 }
 
-func New(L *zap.Logger, hostKey ssh.Signer) Server {
+type SubsystemFunc func(ctx context.Context, L *zap.Logger, fs billy.Filesystem, rwc io.ReadWriteCloser) error
+
+func (fn SubsystemFunc) Exec(ctx context.Context, L *zap.Logger, fs billy.Filesystem, rwc io.ReadWriteCloser) error {
+	return fn(ctx, L, fs, rwc)
+}
+
+type Server struct {
+	L          *zap.Logger
+	FS         billy.Filesystem
+	HostKey    ssh.Signer
+	Subsystems map[string]Subsystem
+}
+
+func New(L *zap.Logger, fs billy.Filesystem, hostKey ssh.Signer) Server {
 	srv := Server{
 		L:       L,
+		FS:      fs,
 		HostKey: hostKey,
 	}
 	return srv
@@ -122,7 +140,7 @@ func (s *Server) ServeConn(ctx context.Context, nConn net.Conn, cfg ssh.ServerCo
 				go func() {
 					defer g.Done()
 					s.ServeSession(ctx, sessL, ch, reqC)
-					if err := ch.Close(); err != nil {
+					if err := ch.Close(); err != nil && !errors.Is(err, io.EOF) {
 						sessL.Debug("Error closing session", zap.Error(err))
 					}
 					sessL.Debug("Session closed")
@@ -155,8 +173,47 @@ func (s *Server) ServeSession(ctx context.Context, L *zap.Logger, ch ssh.Channel
 				return // Connection closed
 			}
 			switch req.Type {
-			// case "subsystem":
-			// ... handle subsystems ...
+			// | RFC 4254: SSH_MSG_CHANNEL_REQUEST - "subsystem"
+			// | string    subsystem name
+			//
+			// The client is requesting that a subsystem takes over the connection.
+			// After a successful subsystem/shell/exec, the channel is closed.
+			case "subsystem":
+				subL := L.Named("sub")
+
+				name, _, ok := DecodeString(req.Payload)
+				if !ok {
+					subL.Warn("Malformed request", zap.Binary("payload", req.Payload))
+					lazyReply(L, req, false)
+					break
+				}
+				// Distinguish between unknown subsystems and disabled (nil) ones.
+				sys, ok := s.Subsystems[name]
+				if !ok {
+					subL.Warn("Unsupported subsystem", zap.String("name", name))
+					lazyReply(L, req, false)
+					break
+				}
+				if sys == nil {
+					subL.Debug("Disabled subsystem", zap.String("name", name))
+					lazyReply(L, req, false)
+					break
+				}
+
+				// The subsystem is supported, let it take the wheel.
+				L = L.Named(name)
+				L.Debug("Starting")
+				if req.WantReply {
+					if err := req.Reply(true, nil); err != nil {
+						L.Error("Reply error", zap.Error(err))
+						return
+					}
+				}
+				if err := sys.Exec(ctx, L, s.FS, ch); err != nil {
+					L.Error("Error", zap.Error(err))
+				}
+				L.Debug("Finished")
+				return
 
 			// If we wanted to offer a shell, this would be the place to do it.
 			// For now, just print a nicer error message and return exit code 255.
@@ -168,10 +225,10 @@ func (s *Server) ServeSession(ctx context.Context, L *zap.Logger, ch ssh.Channel
 					}
 				}
 				fmt.Fprintln(ch, "// Shell access is not allowed.")
-				ch.SendRequest("exit-status", false, []byte{0x00, 0x00, 0x00, 0xFF})
+				ch.SendRequest("exit-status", false, EncodeUint32(255))
 				return
 
-			// Supporting commands that don't do anything, but shouldn't error.
+			// Discard shell/exec's supporting commands, else the openssh client prints errors.
 			case "pty-req", "env", "window-change":
 				L.Debug("Discarding request", zap.String("type", req.Type))
 				lazyReply(L, req, true)
@@ -179,6 +236,7 @@ func (s *Server) ServeSession(ctx context.Context, L *zap.Logger, ch ssh.Channel
 			// Known unsupported commands.
 			case "x11-req", "xon-xoff", "signal":
 				L.Debug("Unsupported request", zap.String("type", req.Type))
+				lazyReply(L, req, false)
 
 			// ???
 			default:

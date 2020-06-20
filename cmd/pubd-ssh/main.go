@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net/http"
 	"os"
 	"path/filepath"
 
@@ -17,14 +16,22 @@ import (
 
 	"github.com/liclac/pubd"
 	"github.com/liclac/pubd/cliutil"
+	"github.com/liclac/pubd/proto/sftppub"
 	"github.com/liclac/pubd/proto/sshpub"
 )
 
 const Usage = `usage: pubd-ssh [-F] [path]`
 
+type ServerConfig struct {
+	SFTP struct {
+		Enable bool `toml:"enable"`
+	} `toml:"sftp"`
+}
+
 type Config struct {
 	Addr        string `toml:"addr"`
 	HostKeyFile string `toml:"host-key-file"` // Path to host private key.
+	ServerConfig
 	cliutil.FileSystemConfig
 	cliutil.LogConfig
 }
@@ -33,14 +40,24 @@ func Parse(fs billy.Filesystem, args []string) (Config, error) {
 	cfg := Config{Addr: "localhost:2222", FileSystemConfig: cliutil.FileSystemDefaults()}
 	return cfg, cliutil.Configure(&cfg, &cfg.Path, func(f *pflag.FlagSet) {
 		f.StringVarP(&cfg.Addr, "addr", "a", cfg.Addr, "listen address")
+		f.BoolVarP(&cfg.SFTP.Enable, "sftp.enable", "F", cfg.SFTP.Enable, "enable SFTP access")
 		f.StringVarP(&cfg.HostKeyFile, "host-key-file", "K", cfg.HostKeyFile, "path to host private key file")
 		cfg.FileSystemConfig.Flags(f)
 		cfg.LogConfig.Flags(f)
 	}, Usage, args)
 }
 
-func Server(L *zap.Logger, fs http.FileSystem, hostKey ssh.Signer) pubd.Server {
-	srv := sshpub.New(L, hostKey)
+func Server(L *zap.Logger, fs billy.Filesystem, hostKey ssh.Signer, cfg ServerConfig) pubd.Server {
+	var subSFTP sshpub.Subsystem
+	if cfg.SFTP.Enable {
+		subSFTP = sftppub.New()
+	}
+
+	// Subsystems should be explicitly set to nil when disabled; an unset subsystem logs a warning.
+	srv := sshpub.New(L, fs, hostKey)
+	srv.Subsystems = map[string]sshpub.Subsystem{
+		"sftp": subSFTP,
+	}
 	return pubd.ServerFunc(func(ctx context.Context, l net.Listener) error {
 		L.Info("Running", zap.Stringer("addr", l.Addr()))
 		return srv.Serve(ctx, l)
@@ -51,6 +68,9 @@ func Main(hostFS billy.Filesystem, args []string) error {
 	cfg, err := Parse(hostFS, args)
 	if err != nil {
 		return err
+	}
+	if !cfg.SFTP.Enable {
+		return errors.New("no transports enabled; try -F/--sftp.enable")
 	}
 
 	if cfg.HostKeyFile == "" {
@@ -71,7 +91,7 @@ func Main(hostFS billy.Filesystem, args []string) error {
 	}
 	L := cfg.Logger().Named("ssh")
 	ctx := pubd.WithSignalHandler(context.Background())
-	return pubd.ListenAndServe(ctx, cfg.Addr, Server(L, fs, hostKey))
+	return pubd.ListenAndServe(ctx, cfg.Addr, Server(L, fs, hostKey, cfg.ServerConfig))
 }
 
 func main() {
