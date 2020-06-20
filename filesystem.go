@@ -16,11 +16,11 @@ func SortFileInfos(infos []os.FileInfo) {
 
 type filteredFileSystem struct {
 	billy.Filesystem
-	filter func(string, os.FileInfo) bool
+	filter func(string, bool) bool
 }
 
 // Returns a filesystem which includes only files for which `filter` returns true.
-func FileSystemFilter(fs billy.Filesystem, filter func(string, os.FileInfo) bool) billy.Filesystem {
+func FileSystemFilter(fs billy.Filesystem, filter func(string, bool) bool) billy.Filesystem {
 	return filteredFileSystem{fs, filter}
 }
 
@@ -39,7 +39,43 @@ func FileSystemExclude(fs billy.Filesystem, exprs []string) billy.Filesystem {
 	}
 	ignored := gitignore.NewMatcher(patterns)
 
-	return FileSystemFilter(fs, func(path string, info os.FileInfo) bool {
-		return !ignored.Match(strings.Split(strings.Trim(path, "/"), "/"), info.IsDir())
+	return FileSystemFilter(fs, func(path string, isDir bool) bool {
+		return !ignored.Match(strings.Split(strings.Trim(path, "/"), "/"), isDir)
 	})
+}
+
+// Silly optimisations: try to evaluate the filter only once, and avoid hitting the disk
+// to stat() upfront if if wouldn't be allowed anyhow.
+func (fs filteredFileSystem) isAllowed(filename string) (bool, error) {
+	if fs.filter(filename, false) {
+		info, err := fs.Filesystem.Stat(filename)
+		return info != nil && (!info.IsDir() || fs.filter(filename, true)), err
+	} else if fs.filter(filename, true) {
+		info, err := fs.Filesystem.Stat(filename)
+		return info != nil && info.IsDir(), err
+	} else {
+		return false, nil
+	}
+}
+
+func (fs filteredFileSystem) Open(filename string) (billy.File, error) {
+	isAllowed, err := fs.isAllowed(filename)
+	if err != nil {
+		return nil, err
+	}
+	if !isAllowed {
+		return nil, os.ErrNotExist
+	}
+	return fs.Filesystem.Open(filename)
+}
+
+func (fs filteredFileSystem) OpenFile(filename string, flag int, perm os.FileMode) (billy.File, error) {
+	isAllowed, err := fs.isAllowed(filename)
+	if err != nil {
+		return nil, err
+	}
+	if !isAllowed {
+		return nil, os.ErrNotExist
+	}
+	return fs.Filesystem.OpenFile(filename, flag, perm)
 }
