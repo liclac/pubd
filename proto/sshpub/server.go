@@ -11,38 +11,26 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/go-git/go-billy/v5"
 	"github.com/liclac/pubd"
 )
 
 var _ pubd.Server = Server{}
-var _ Subsystem = SubsystemFunc(nil)
 
 // A subsystem offered by the SSH session's 'subsystem' command.
 type Subsystem interface {
-	Exec(context.Context, *zap.Logger, billy.Filesystem, io.ReadWriteCloser) error
-}
-
-type SubsystemFunc func(ctx context.Context, L *zap.Logger, fs billy.Filesystem, rwc io.ReadWriteCloser) error
-
-func (fn SubsystemFunc) Exec(ctx context.Context, L *zap.Logger, fs billy.Filesystem, rwc io.ReadWriteCloser) error {
-	return fn(ctx, L, fs, rwc)
+	Exec(context.Context, *zap.Logger, io.ReadWriteCloser) error
 }
 
 type Server struct {
-	L          *zap.Logger
-	FS         billy.Filesystem
-	HostKey    ssh.Signer
+	L       *zap.Logger
+	HostKey ssh.Signer
+
+	// Silence warnings about unsupported subsystems by explicitly setting them to nil.
 	Subsystems map[string]Subsystem
 }
 
-func New(L *zap.Logger, fs billy.Filesystem, hostKey ssh.Signer) Server {
-	srv := Server{
-		L:       L,
-		FS:      fs,
-		HostKey: hostKey,
-	}
-	return srv
+func New(L *zap.Logger, hostKey ssh.Signer) Server {
+	return Server{L: L, HostKey: hostKey}
 }
 
 func (s Server) Serve(ctx context.Context, l net.Listener) error {
@@ -209,7 +197,7 @@ func (s *Server) ServeSession(ctx context.Context, L *zap.Logger, ch ssh.Channel
 						return
 					}
 				}
-				if err := sys.Exec(ctx, L, s.FS, ch); err != nil {
+				if err := sys.Exec(ctx, L, ch); err != nil {
 					L.Error("Error", zap.Error(err))
 				}
 				L.Debug("Finished")

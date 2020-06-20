@@ -50,11 +50,11 @@ func Parse(fs billy.Filesystem, args []string) (Config, error) {
 func Server(L *zap.Logger, fs billy.Filesystem, hostKey ssh.Signer, cfg ServerConfig) pubd.Server {
 	var subSFTP sshpub.Subsystem
 	if cfg.SFTP.Enable {
-		subSFTP = sftppub.New()
+		subSFTP = sftppub.New(fs)
 	}
 
 	// Subsystems should be explicitly set to nil when disabled; an unset subsystem logs a warning.
-	srv := sshpub.New(L, fs, hostKey)
+	srv := sshpub.New(L, hostKey)
 	srv.Subsystems = map[string]sshpub.Subsystem{
 		"sftp": subSFTP,
 	}
