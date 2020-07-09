@@ -32,7 +32,16 @@ func TestSortFileInfos(t *testing.T) {
 
 func TestFileSystemExclude(t *testing.T) {
 	testdata := map[string]map[string]bool{
+		".*": {
+			".git/HEAD":          false,
+			"/index.txt":         true,
+			"/index.html":        true,
+			"/about.html":        true,
+			"/subdir/index.html": true,
+			"/subdir/about.html": true,
+		},
 		"index.html": {
+			".git/HEAD":          true,
 			"/index.txt":         true,
 			"/index.html":        false,
 			"/about.html":        true,
@@ -40,6 +49,7 @@ func TestFileSystemExclude(t *testing.T) {
 			"/subdir/about.html": true,
 		},
 		"*.html": {
+			".git/HEAD":          true,
 			"/index.txt":         true,
 			"/index.html":        false,
 			"/about.html":        false,
@@ -47,6 +57,7 @@ func TestFileSystemExclude(t *testing.T) {
 			"/subdir/about.html": false,
 		},
 		"subdir": {
+			".git/HEAD":          true,
 			"/index.txt":         true,
 			"/index.html":        true,
 			"/about.html":        true,
@@ -54,6 +65,7 @@ func TestFileSystemExclude(t *testing.T) {
 			"/subdir/about.html": false,
 		},
 		"subdir/*.html": {
+			".git/HEAD":          true,
 			"/index.txt":         true,
 			"/index.html":        true,
 			"/about.html":        true,
@@ -76,6 +88,7 @@ func TestFileSystemExclude(t *testing.T) {
 					for name, open := range openers {
 						t.Run(name, func(t *testing.T) {
 							baseFS := memfs.New()
+							require.NoError(t, baseFS.MkdirAll(".git", 0000))
 							require.NoError(t, baseFS.MkdirAll("subdir", 0000))
 							for path := range pathdata {
 								require.NoError(t, util.WriteFile(baseFS, path, []byte(path), 0000))
