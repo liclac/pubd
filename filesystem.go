@@ -91,10 +91,7 @@ func (fs filteredFileSystem) ReadDir(filename string) ([]os.FileInfo, error) {
 	}
 	filteredInfos := make([]os.FileInfo, 0, len(realInfos))
 	for _, info := range realInfos {
-		isAllowed, err := fs.isAllowed(info.Name())
-		if err != nil {
-			return nil, err
-		} else if isAllowed {
+		if fs.filter(info.Name(), info.IsDir()) {
 			filteredInfos = append(filteredInfos, info)
 		}
 	}
