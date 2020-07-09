@@ -62,8 +62,7 @@ func (fs filteredFileSystem) Open(filename string) (billy.File, error) {
 	isAllowed, err := fs.isAllowed(filename)
 	if err != nil {
 		return nil, err
-	}
-	if !isAllowed {
+	} else if !isAllowed {
 		return nil, os.ErrNotExist
 	}
 	return fs.Filesystem.Open(filename)
@@ -73,9 +72,31 @@ func (fs filteredFileSystem) OpenFile(filename string, flag int, perm os.FileMod
 	isAllowed, err := fs.isAllowed(filename)
 	if err != nil {
 		return nil, err
-	}
-	if !isAllowed {
+	} else if !isAllowed {
 		return nil, os.ErrNotExist
 	}
 	return fs.Filesystem.OpenFile(filename, flag, perm)
+}
+
+func (fs filteredFileSystem) ReadDir(filename string) ([]os.FileInfo, error) {
+	isAllowed, err := fs.isAllowed(filename)
+	if err != nil {
+		return nil, err
+	} else if !isAllowed {
+		return nil, os.ErrNotExist
+	}
+	realInfos, err := fs.Filesystem.ReadDir(filename)
+	if err != nil {
+		return nil, err
+	}
+	filteredInfos := make([]os.FileInfo, 0, len(realInfos))
+	for _, info := range realInfos {
+		isAllowed, err := fs.isAllowed(info.Name())
+		if err != nil {
+			return nil, err
+		} else if isAllowed {
+			filteredInfos = append(filteredInfos, info)
+		}
+	}
+	return filteredInfos, nil
 }
