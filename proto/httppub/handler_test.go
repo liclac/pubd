@@ -1,6 +1,7 @@
 package httppub
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -94,4 +95,47 @@ func TestHandlerSimpleIndex(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "ref: refs/heads/master", string(body))
 	})
+}
+
+func Test_cleanPath(t *testing.T) {
+	testdata := map[string]string{
+		"":            "/",
+		"/":           "/",
+		"index.html":  "/index.html",
+		"/index.html": "/index.html",
+		"/dir":        "/dir",
+		"/dir/":       "/dir/",
+		"//dir":       "/dir",
+		"//dir//":     "/dir/",
+		"/dir/a":      "/dir/a",
+		"/dir/a/..":   "/dir",
+		"/dir/a/../":  "/dir/",
+	}
+	for in, out := range testdata {
+		assert.Equal(t, out, cleanPath(in))
+	}
+}
+
+func Test_redirectForCanon(t *testing.T) {
+	testdata := []struct {
+		path  string
+		isDir bool
+		out   string
+	}{
+		{"/", true, ""},
+		{"/", false, ".."},
+		{"/.git", true, ".git/"},
+		{"/.git", false, ""},
+		{"/.git/", true, ""},
+		{"/.git/", false, "../.git"},
+		{"/.git/HEAD", false, ""},
+		{"/.git/HEAD", true, "HEAD/"},
+		{"/.git/HEAD/", false, "../HEAD"},
+		{"/.git/HEAD/", true, ""},
+	}
+	for _, tdata := range testdata {
+		t.Run(fmt.Sprintf("%s (%v)", tdata.path, tdata.isDir), func(t *testing.T) {
+			assert.Equal(t, tdata.out, redirectForCanon(tdata.path, tdata.isDir))
+		})
+	}
 }

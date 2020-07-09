@@ -37,13 +37,7 @@ func handle(rw http.ResponseWriter, req *http.Request, fs http.FileSystem, idxFn
 		return ErrMethodNotAllowed
 	}
 
-	fpath := path.Clean(req.URL.Path)
-	if fpath == "" {
-		fpath = "/"
-	}
-	req.URL.Path = fpath
-
-	f, err := fs.Open(fpath)
+	f, err := fs.Open(req.URL.Path)
 	if err != nil {
 		return err
 	}
@@ -54,13 +48,13 @@ func handle(rw http.ResponseWriter, req *http.Request, fs http.FileSystem, idxFn
 		return err
 	}
 
-	if info.IsDir() {
-		// Make sure directory requests end in "/".
-		if u := req.URL.Path; u[len(u)-1] != '/' {
-			localRedirect(rw, req, path.Base(u)+"/")
-			return nil
-		}
+	isDir := info.IsDir()
+	if cpath := redirectForCanon(req.URL.Path, isDir); cpath != "" {
+		localRedirect(rw, req, cpath)
+		return nil
+	}
 
+	if isDir {
 		// If we have an indexer, render an index.
 		if idxFn != nil {
 			infos, err := f.Readdir(-1)
@@ -77,16 +71,38 @@ func handle(rw http.ResponseWriter, req *http.Request, fs http.FileSystem, idxFn
 		// Else return a 404 Not Found if indexing is not enabled.
 		return os.ErrNotExist
 	} else {
-		// If it's not a directory, it shouldn't end in a slash.
-		if u := req.URL.Path; u[len(u)-1] == '/' {
-			localRedirect(rw, req, "../"+path.Base(u))
-			return nil
-		}
-
 		// ServeContent takes care of the rest.
 		http.ServeContent(rw, req, info.Name(), info.ModTime(), f)
 		return nil
 	}
+}
+
+// Clean a request path.
+func cleanPath(in string) string {
+	out := []rune(path.Clean("/" + in))
+	// The "/" prefix should ensure that this never happens, but still.
+	if len(out) == 0 {
+		return "/"
+	}
+	// If the input path ends in a "/", so shall the output path.
+	if in != "" && in[len(in)-1] == '/' && out[len(out)-1] != '/' {
+		out = append(out, '/')
+	}
+	return string(out)
+}
+
+// Requests for directories should have paths ending in "/", files should not.
+func redirectForCanon(p string, isDir bool) string {
+	if isDir {
+		if p[len(p)-1] != '/' {
+			return path.Base(p) + "/"
+		}
+	} else {
+		if p[len(p)-1] == '/' {
+			return path.Clean("../" + path.Base(p))
+		}
+	}
+	return ""
 }
 
 // Helper copy-pasted from net/http. Redirects without absolutising newPath.
