@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// Ensures that the prefix for WithPrefix has a leading and trailing '/'.
+// Ensures that the prefix for WithPrefix has a leading '/', but not a trailing one.
 func CleanPrefix(prefix string) string {
 	runes := []rune(prefix)
 	if len(runes) == 0 {
@@ -44,7 +44,20 @@ func CleanPrefix(prefix string) string {
 
 // Serve from a subdirectory, rather than the root. Paths outside prefix 404.
 func WithPrefix(prefix string, next http.Handler) http.Handler {
-	return http.StripPrefix(CleanPrefix(prefix), next)
+	prefix = CleanPrefix(prefix)
+	if len(prefix) == 0 {
+		return next
+	}
+	inner := http.StripPrefix(prefix, next)
+	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		if !strings.HasPrefix(req.URL.Path, prefix) {
+			http.NotFound(rw, req)
+		} else if req.URL.Path == prefix {
+			localRedirect(rw, req, prefix[1:]+"/")
+		} else {
+			inner.ServeHTTP(rw, req)
+		}
+	})
 }
 
 // http.ResponseWriter wrapper used by WithAccessLog.

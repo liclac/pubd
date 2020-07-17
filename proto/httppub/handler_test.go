@@ -122,6 +122,8 @@ func Test_redirectForCanon(t *testing.T) {
 		isDir bool
 		out   string
 	}{
+		{"", true, "./"},
+		{"", false, ""},
 		{"/", true, ""},
 		{"/", false, ".."},
 		{"/.git", true, ".git/"},

@@ -94,13 +94,13 @@ func cleanPath(in string) string {
 // Requests for directories should have paths ending in "/", files should not.
 func redirectForCanon(p string, isDir bool) string {
 	if isDir {
-		if p[len(p)-1] != '/' {
+		if len(p) == 0 {
+			return "./"
+		} else if p[len(p)-1] != '/' {
 			return path.Base(p) + "/"
 		}
-	} else {
-		if p[len(p)-1] == '/' {
-			return path.Clean("../" + path.Base(p))
-		}
+	} else if len(p) > 0 && p[len(p)-1] == '/' {
+		return path.Clean("../" + path.Base(p))
 	}
 	return ""
 }
