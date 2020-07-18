@@ -20,9 +20,8 @@ func LogErrors(L *zap.Logger) ErrorFn {
 
 // Returns an HTTP handler that serves from a filesystem.
 func Handler(fs billy.Filesystem, idxFn Indexer, errCb ErrorFn) http.Handler {
-	httpFS := FileSystem(fs) // TODO: Just use a billy.Filesystem.
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		if err := handle(rw, req, httpFS, idxFn); err != nil {
+		if err := handle(rw, req, fs, idxFn); err != nil {
 			if errCb != nil {
 				errCb(err)
 			}
@@ -32,18 +31,12 @@ func Handler(fs billy.Filesystem, idxFn Indexer, errCb ErrorFn) http.Handler {
 }
 
 // Helper for Handler(), because returning errors is easier.
-func handle(rw http.ResponseWriter, req *http.Request, fs http.FileSystem, idxFn Indexer) error {
+func handle(rw http.ResponseWriter, req *http.Request, fs billy.Filesystem, idxFn Indexer) error {
 	if req.Method != http.MethodGet {
 		return ErrMethodNotAllowed
 	}
 
-	f, err := fs.Open(req.URL.Path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	info, err := f.Stat()
+	info, err := fs.Stat(req.URL.Path)
 	if err != nil {
 		return err
 	}
@@ -57,7 +50,7 @@ func handle(rw http.ResponseWriter, req *http.Request, fs http.FileSystem, idxFn
 	if isDir {
 		// If we have an indexer, render an index.
 		if idxFn != nil {
-			infos, err := f.Readdir(-1)
+			infos, err := fs.ReadDir(req.URL.Path)
 			if err != nil {
 				return err
 			}
@@ -71,6 +64,12 @@ func handle(rw http.ResponseWriter, req *http.Request, fs http.FileSystem, idxFn
 		// Else return a 404 Not Found if indexing is not enabled.
 		return os.ErrNotExist
 	} else {
+		f, err := fs.Open(req.URL.Path)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
 		// ServeContent takes care of the rest.
 		http.ServeContent(rw, req, info.Name(), info.ModTime(), f)
 		return nil
