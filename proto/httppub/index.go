@@ -14,7 +14,7 @@ import (
 
 type IndexConfig struct {
 	// README files are included at the bottom of a directory listing.
-	READMEs []string
+	READMEs []string `toml:"readme"`
 }
 
 // Interface for producing a directory index.
