@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/liclac/pubd/cliutil"
+	"github.com/liclac/pubd/proto/httppub"
 )
 
 func mkTestFS(t *testing.T, files map[string]string) billy.Filesystem {
@@ -25,19 +26,27 @@ func mkTestFS(t *testing.T, files map[string]string) billy.Filesystem {
 }
 
 func TestParse(t *testing.T) {
-	type FSC = cliutil.FileSystemConfig // These lines are getting too long.
+	// These lines are getting too long.
+	type FSC = cliutil.FileSystemConfig
+	type IXC = httppub.IndexConfig
 
 	testdata := map[string]Config{
-		"0":                              {},
-		"0 www":                          {FileSystemConfig: FSC{Path: "www"}},
-		"0 -a localhost:9999":            {Addr: "localhost:9999"},
-		"0 --addr=localhost:9999":        {Addr: "localhost:9999"},
-		"0 -P ~liclac":                   {Prefix: "~liclac"},
-		"0 --prefix=~liclac":             {Prefix: "~liclac"},
+		"0":                       {},
+		"0 www":                   {FileSystemConfig: FSC{Path: "www"}},
+		"0 -a localhost:9999":     {Addr: "localhost:9999"},
+		"0 --addr=localhost:9999": {Addr: "localhost:9999"},
+		"0 -P ~liclac":            {Prefix: "~liclac"},
+		"0 --prefix=~liclac":      {Prefix: "~liclac"},
+
 		"0 -x .git":                      {FileSystemConfig: FSC{Exclude: []string{".git"}}},
 		"0 --exclude=.git":               {FileSystemConfig: FSC{Exclude: []string{".git"}}},
 		"0 -x .git -x tmp":               {FileSystemConfig: FSC{Exclude: []string{".git", "tmp"}}},
 		"0 --exclude=.git --exclude=tmp": {FileSystemConfig: FSC{Exclude: []string{".git", "tmp"}}},
+
+		"0 -R RM.txt":                      {IndexConfig: IXC{READMEs: []string{"RM.txt"}}},
+		"0 --readme RM.txt":                {IndexConfig: IXC{READMEs: []string{"RM.txt"}}},
+		"0 -R RM.txt -R RM.md":             {IndexConfig: IXC{READMEs: []string{"RM.txt", "RM.md"}}},
+		"0 --readme RM.txt --readme RM.md": {IndexConfig: IXC{READMEs: []string{"RM.txt", "RM.md"}}},
 	}
 	for in, out := range testdata {
 		if out.Addr == "" {

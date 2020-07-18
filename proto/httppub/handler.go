@@ -12,16 +12,16 @@ import (
 )
 
 // Returns an HTTP handler that serves from a filesystem.
-func Handler(L *zap.Logger, fs billy.Filesystem, idxFn Indexer) http.Handler {
+func Handler(L *zap.Logger, fs billy.Filesystem, idx Indexer) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		if err := handle(L, rw, req, fs, idxFn); err != nil {
+		if err := handle(L, rw, req, fs, idx); err != nil {
 			RenderError(rw, req, err)
 		}
 	})
 }
 
 // Helper for Handler(), because returning errors is easier.
-func handle(L *zap.Logger, rw http.ResponseWriter, req *http.Request, fs billy.Filesystem, idxFn Indexer) error {
+func handle(L *zap.Logger, rw http.ResponseWriter, req *http.Request, fs billy.Filesystem, idx Indexer) error {
 	if req.Method != http.MethodGet {
 		return ErrMethodNotAllowed
 	}
@@ -39,13 +39,13 @@ func handle(L *zap.Logger, rw http.ResponseWriter, req *http.Request, fs billy.F
 
 	if isDir {
 		// If we have an indexer, render an index.
-		if idxFn != nil {
+		if idx != nil {
 			infos, err := fs.ReadDir(req.URL.Path)
 			if err != nil {
 				return err
 			}
 			pubd.SortFileInfos(infos)
-			if err := idxFn(rw, req, info, infos); err != nil {
+			if err := idx.Render(rw, req, fs, infos); err != nil {
 				return err
 			}
 			return nil

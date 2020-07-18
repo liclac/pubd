@@ -23,6 +23,7 @@ const Usage = `usage: pubd-http [path]`
 type Config struct {
 	Addr   string `toml:"addr"`
 	Prefix string `toml:"prefix"`
+	httppub.IndexConfig
 	cliutil.FileSystemConfig
 	cliutil.LogConfig
 }
@@ -32,6 +33,7 @@ func Parse(fs billy.Filesystem, args []string) (Config, error) {
 	return cfg, cliutil.Configure(&cfg, &cfg.Path, func(f *pflag.FlagSet) {
 		f.StringVarP(&cfg.Addr, "addr", "a", cfg.Addr, "listen address")
 		f.StringVarP(&cfg.Prefix, "prefix", "P", cfg.Prefix, "serve from a subdirectory")
+		f.StringSliceVarP(&cfg.IndexConfig.READMEs, "readme", "R", cfg.READMEs, "include README(s) at the bottom of directory listings")
 		cfg.FileSystemConfig.Flags(f)
 		cfg.LogConfig.Flags(f)
 	}, Usage, args)
@@ -44,7 +46,7 @@ func (cfg *Config) Filesystem(fs billy.Filesystem) (billy.Filesystem, error) {
 func (cfg *Config) Handler(L *zap.Logger, fs billy.Filesystem) http.Handler {
 	return httppub.WithPrefix(cfg.Prefix,
 		httppub.WithAccessLog(L.Named("access"),
-			httppub.Handler(L.Named("req"), fs, httppub.SimpleIndex()),
+			httppub.Handler(L.Named("req"), fs, httppub.SimpleIndex(cfg.IndexConfig)),
 		))
 }
 

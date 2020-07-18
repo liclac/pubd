@@ -11,6 +11,7 @@ import (
 	"github.com/go-git/go-billy/v5/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 func TestHandlerNoIndex(t *testing.T) {
@@ -18,7 +19,7 @@ func TestHandlerNoIndex(t *testing.T) {
 	require.NoError(t, fs.MkdirAll("/.git", 0000))
 	require.NoError(t, util.WriteFile(fs, "/.git/HEAD", []byte("ref: refs/heads/master"), 0000))
 
-	srv := httptest.NewServer(Handler(fs, nil, nil))
+	srv := httptest.NewServer(Handler(zap.NewNop(), fs, nil))
 	defer srv.Close()
 
 	t.Run("POST /", func(t *testing.T) {
@@ -60,7 +61,7 @@ func TestHandlerSimpleIndex(t *testing.T) {
 	require.NoError(t, fs.MkdirAll("/.git", 0000))
 	require.NoError(t, util.WriteFile(fs, "/.git/HEAD", []byte("ref: refs/heads/master"), 0000))
 
-	srv := httptest.NewServer(Handler(fs, SimpleIndex(), nil))
+	srv := httptest.NewServer(Handler(zap.NewNop(), fs, SimpleIndex(IndexConfig{})))
 	defer srv.Close()
 
 	t.Run("POST /", func(t *testing.T) {
