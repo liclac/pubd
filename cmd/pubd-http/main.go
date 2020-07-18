@@ -44,7 +44,7 @@ func (cfg *Config) Filesystem(fs billy.Filesystem) (billy.Filesystem, error) {
 func (cfg *Config) Handler(L *zap.Logger, fs billy.Filesystem) http.Handler {
 	return httppub.WithPrefix(cfg.Prefix,
 		httppub.WithAccessLog(L.Named("access"),
-			httppub.Handler(fs, httppub.SimpleIndex(), httppub.LogErrors(L.Named("req"))),
+			httppub.Handler(L.Named("req"), fs, httppub.SimpleIndex()),
 		))
 }
 

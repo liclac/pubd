@@ -20,7 +20,7 @@ func ErrorCode(err error) int {
 }
 
 // Responds with an error page, in the form "404 Not Found".
-func Error(rw http.ResponseWriter, req *http.Request, err error) {
+func RenderError(rw http.ResponseWriter, req *http.Request, err error) {
 	status := ErrorCode(err)
 	rw.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	rw.WriteHeader(status)
